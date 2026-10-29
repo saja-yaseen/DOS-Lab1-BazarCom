@@ -1,0 +1,16 @@
+
+services:
+  catalog:
+    build:
+      context: .
+      args:
+        SERVICE: catalog
+    environment:
+      DB_PATH: /data/catalog.db
+    ports:
+      - "127.0.0.1:5101:5001"
+    volumes:
+      - catalog_data:/data
+
+volumes:
+  catalog_data:
