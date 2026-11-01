@@ -109,6 +109,7 @@ Both services were deployed in separate Docker containers using Docker Compose.
 ![Frontend Search](10_frontend_search.png)
 
 ### Integration Result
+![Docker Compose Containers](11_frontend_containers.png)
 
 The Catalog Service and the Frontend Search and Info operations have been successfully implemented and tested. The Order Service, Purchase operation, and final three-service integration remain to be completed.
  Copy
