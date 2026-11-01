@@ -82,3 +82,34 @@ The following operations were tested:
 The Catalog Service successfully passed the performed functional and persistence tests.
 
 The Order Service, Frontend Service, and complete three-service integration still require development and testing.
+## 7. Frontend Service Integration Testing
+
+The Frontend Service was implemented using Flask and configured to communicate with the Catalog Service through HTTP REST requests.
+
+Both services were deployed in separate Docker containers using Docker Compose.
+
+### Test 1: Frontend Info API
+
+**Request:** `GET http://127.0.0.1:5100/info/2`
+
+**Result:** The Frontend successfully retrieved the book information from the Catalog Service, including price 50.0 and quantity 9.
+
+**Status:** Passed
+
+![Frontend Info](09_frontend_info.png)
+
+### Test 2: Frontend Search API
+
+**Request:** `GET http://127.0.0.1:5100/search/distributed%20systems`
+
+**Result:** The Frontend successfully returned the two books belonging to the distributed systems topic.
+
+**Status:** Passed
+
+![Frontend Search](10_frontend_search.png)
+
+### Integration Result
+
+The Catalog and Frontend services were successfully deployed in separate Docker containers and communicated through REST APIs.
+
+The Purchase operation and Order Service integration remain to be implemented.
