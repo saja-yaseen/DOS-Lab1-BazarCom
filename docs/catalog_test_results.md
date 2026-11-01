@@ -110,6 +110,5 @@ Both services were deployed in separate Docker containers using Docker Compose.
 
 ### Integration Result
 
-The Catalog and Frontend services were successfully deployed in separate Docker containers and communicated through REST APIs.
-
-The Purchase operation and Order Service integration remain to be implemented.
+The Catalog Service and the Frontend Search and Info operations have been successfully implemented and tested. The Order Service, Purchase operation, and final three-service integration remain to be completed.
+ Copy
