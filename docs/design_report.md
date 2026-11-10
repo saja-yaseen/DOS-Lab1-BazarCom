@@ -1,124 +1,62 @@
 # Bazar.com – Lab 1 Design Report
 
 **Course:** Distributed and Operating Systems – Fall 2026  
-**Project:** Bazar.com: A Multi-tier Online Book Store
+**Project:** A Multi-tier Online Book Store
 
-## 1. System Architecture
+## 1. Architecture and Design
 
-Bazar.com is a multi-tier online bookstore implemented using three independent Python Flask microservices: Frontend, Catalog, and Order. Each service runs in its own Docker container and communicates with the other services using HTTP REST APIs with JSON responses.
+Bazar.com is a distributed bookstore built using three lightweight Python Flask microservices: **Frontend, Catalog, and Order**. Each runs in a separate Docker container and communicates using HTTP REST requests and JSON responses.
 
-The Frontend Service is the entry point for client requests. It forwards search and book information requests to the Catalog Service and purchase requests to the Order Service. The Catalog Service manages information about four books, including their titles, topics, prices, and available stock. The Order Service handles purchases and maintains a persistent record of successful orders.
+The Frontend receives client requests and forwards Search and Info operations to Catalog and Purchase operations to Order. Catalog stores four books, their topics, prices, and stock quantities in SQLite. Order processes purchases and records successful orders in a separate SQLite database.
 
-The system is managed using Docker Compose. The services communicate through Docker's internal network using their service names.
+Docker Compose manages the services, networking, and persistent database volumes. Service addresses and database paths are configured using environment variables.
 
 ## 2. How the System Works
 
-### Search Operation
+**Search:** A client sends `GET /search/<topic>` to Frontend. Catalog queries its database and returns matching book IDs and titles.
 
-A client sends a GET request to `/search/<topic>` through the Frontend Service. The Frontend forwards the request to the Catalog Service, which queries its SQLite database and returns matching book titles and item numbers.
+**Info:** A client sends `GET /info/<item_id>`. Catalog returns the book title, price, and available quantity.
 
-### Info Operation
+**Purchase:** A client sends `POST /purchase/<item_id>` to Frontend, which forwards it to Order. Order queries Catalog to verify the book and check stock availability. If stock is insufficient, HTTP 409 is returned. Otherwise, Order requests an atomic inventory decrement from Catalog and records the purchase in SQLite.
 
-A client sends a GET request to `/info/<item_id>`. The Frontend retrieves the corresponding book information from Catalog, including its title, price, and quantity in stock.
-
-### Purchase Operation
-
-A client sends a POST request to `/purchase/<item_id>` through Frontend. The request is forwarded to the Order Service.
-
-The Order Service first queries Catalog to obtain the book information and check the available quantity. If insufficient stock is available, the operation returns HTTP 409. Otherwise, Order requests a stock decrease through Catalog's update endpoint.
-
-Catalog uses an SQLite transaction with `BEGIN IMMEDIATE` to prevent concurrent updates from making the inventory negative. After a successful stock update, Order saves the purchase in its own SQLite database and returns the order details to the client.
-
-For each successful purchase, Order also prints a message in the required format, such as:
-
-`bought book RPCs for Noobs`
+Catalog uses SQLite's `BEGIN IMMEDIATE` transaction to protect stock updates from concurrent requests. Successful purchases generate a log message such as `bought book RPCs for Noobs`.
 
 ## 3. Design Decisions and Trade-offs
 
-**Flask and REST:** Flask was chosen because it is lightweight and supports HTTP endpoints with minimal code. REST and JSON provide simple communication between independent services.
+Flask provides lightweight REST services with concurrent request handling. SQLite provides persistence without requiring a separate database server. Docker Compose simplifies deployment, while independent containers make service responsibilities clear.
 
-**SQLite:** Separate SQLite databases are used for Catalog and Order. SQLite provides disk persistence without the complexity of a heavyweight database server.
-
-**Docker Compose:** Docker Compose simplifies starting and managing the three services. Environment variables are used to configure internal service addresses and database paths.
-
-**Concurrency:** Flask accepts concurrent requests, while Catalog uses an immediate SQLite transaction to serialize inventory updates and prevent negative stock.
-
-**Trade-off:** The system prioritizes simplicity and clear separation between services over advanced fault tolerance and scalability.
+The main trade-off is between implementation simplicity and distributed fault tolerance. Inventory updates are atomic inside Catalog, but stock changes and order recording occur in different databases and cannot be committed as one transaction.
 
 ## 4. Testing and Results
 
-The system was tested by issuing HTTP requests from Windows PowerShell and a web browser to the Docker-based services.
+The implementation was tested using a host-side PowerShell client and web browser. Search and Info returned the expected book data. Purchases created order records and reduced stock. Purchases exceeding available inventory returned HTTP 409 without decreasing stock.
 
-Tests included successful searches, information requests, successful purchases, insufficient-stock errors, and persistent database storage.
+All three services ran successfully in Docker containers. SQLite orders and catalog inventory remained available after container restarts. The required `bought book <book_name>` message was also verified in Order logs.
 
-Successful purchases decreased Catalog inventory and created records in the Order database. Requests exceeding available stock returned HTTP 409 without reducing inventory. All three services were confirmed running in separate Docker containers.
+Test output and screenshots are stored in `docs/`, including `catalog_test_results.md` and `order_test_results.md`.
 
-Catalog inventory and saved orders remained available after restarting the containers. The Order Service also successfully printed the required `bought book <book_name>` log message.
+## 5. Limitations and Improvements
 
-Screenshots and detailed results are provided in the `docs` directory.
+The system does not provide a fully atomic distributed purchase transaction. If the order database fails after Catalog reduces stock, Order attempts a compensating stock increase, but crashes, timeouts, and uncertain network outcomes may still cause inconsistencies.
 
-## 5. Limitations and Possible Improvements
+Future improvements include idempotent purchase IDs, durable transaction tracking, safer retries, automated concurrency tests, authentication, monitoring, and a production HTTP server.
 
-The system currently uses SQLite databases hosted in separate services. Although Catalog's stock update is atomic, the inventory update and Order database insertion are not part of one distributed transaction.
+## 6. How to Run
 
-If a failure occurs after inventory is decreased but before the order is saved, Order attempts to restore the stock. However, this compensation is best-effort and does not guarantee full recovery from crashes or network failures.
+Docker and Docker Compose are required. From the repository root, run:
 
-A possible improvement would be to introduce unique purchase request IDs, durable transaction states, and an idempotent retry or compensation mechanism to improve fault tolerance.
+`docker compose up -d --build`
 
-Other possible extensions include authentication, customer accounts, a web-based user interface, automated concurrency tests, monitoring, and more extensive error logging.
+The host ports are **5100 (Frontend)**, **5101 (Catalog)**, and **5103 (Order)**.
 
-## 6. How to Run the System
+Example operations:
 
-The project requires Docker and Docker Compose.
+- Search: `GET http://127.0.0.1:5100/search/distributed%20systems`
+- Info: `GET http://127.0.0.1:5100/info/2`
+- Purchase: `POST http://127.0.0.1:5100/purchase/2` with JSON body `{"quantity":1}`
 
-From the project root directory, run:
-
-```bash
-docker compose up -d --build
-```
-
-The services are accessible from the host at:
-
-- Frontend: `http://127.0.0.1:5100`
-- Catalog: `http://127.0.0.1:5101`
-- Order: `http://127.0.0.1:5103`
-
-Example requests:
-
-**Search for books:**
-
-```text
-GET http://127.0.0.1:5100/search/distributed%20systems
-```
-
-**Retrieve book information:**
-
-```text
-GET http://127.0.0.1:5100/info/2
-```
-
-**Purchase a book:**
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:5100/purchase/2" -Method POST -ContentType "application/json" -Body '{"quantity":1}'
-```
-
-To inspect service logs:
-
-```bash
-docker compose logs
-```
-
-To stop the services without deleting database volumes:
-
-```bash
-docker compose down
-```
-
-The databases are stored in persistent Docker volumes. Running `docker compose down -v` deletes these volumes and should be avoided when preserving test data.
+Use `docker compose ps` to view running services and `docker compose logs` to inspect output. Stop services with `docker compose down`. Database volumes persist unless explicitly deleted with `docker compose down -v`.
 
 ## 7. Conclusion
 
-Bazar.com demonstrates a multi-tier client-server architecture using three communicating REST microservices. The system supports searching for books, retrieving book information, processing purchases, updating stock, and storing order history.
-
-The implementation fulfills the core lab functionality while providing a foundation for future improvements in fault tolerance, scalability, and distributed transaction handling.
+Bazar.com demonstrates a working three-service REST architecture with book queries, purchases, inventory updates, concurrent request handling, and persistent storage. The design meets the lab's core requirements while identifying distributed transaction reliability as an important area for improvement.
