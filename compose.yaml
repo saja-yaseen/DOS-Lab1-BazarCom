@@ -12,6 +12,21 @@ services:
     volumes:
       - catalog_data:/data
 
+  order:
+    build:
+      context: .
+      args:
+        SERVICE: order
+    environment:
+      DB_PATH: /data/orders.db
+      CATALOG_URL: http://catalog:5001
+    ports:
+      - "127.0.0.1:5103:5003"
+    volumes:
+      - order_data:/data
+    depends_on:
+      - catalog
+
   frontend:
     build:
       context: .
@@ -19,10 +34,13 @@ services:
         SERVICE: frontend
     environment:
       CATALOG_URL: http://catalog:5001
+      ORDER_URL: http://order:5003
     ports:
       - "127.0.0.1:5100:5000"
     depends_on:
       - catalog
+      - order
 
 volumes:
   catalog_data:
+  order_data:
